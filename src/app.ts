@@ -2,68 +2,36 @@ import axios from "axios";
 import express, { Request, Response, NextFunction } from "express";
 import { validationResult, param, query } from "express-validator";
 const app = express();
-const urlProducts = "https://fakestoreapi.com/products";
 
-type Product = {
-  id: number;
-  title: string;
-  price: number;
-  description: string;
-  category: string;
-  image: string;
-  rating: {
-    rate: number;
-    count: number;
+const apiKey = "21396536a373fc5802cbc8fdf34c40d1";
+const baseUrl = "https://api.openweathermap.org/data/2.5";
+const randomUserApi = "https://randomuser.me/api/";
+
+app.get("/random", async (req, res) => {
+  const { data } = await axios.get(randomUserApi);
+  const obj = {
+    name: data.results[0].name.first,
+    surname: data.results[0].name.last,
+    city: data.results[0].location.city,
+    weather: "",
   };
-};
-
-app.use(express.json());
-
-const checkErrors = (req: Request, res: Response, next: NextFunction) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+  try {
+    const response = await axios.get(
+      `${baseUrl}/weather?q=${obj.city}&appid=${apiKey}`
+    );
+    obj.weather = response.data.weather[0].main;
+  } catch (err) {
+    obj.weather = "Not supported....";
   }
-  next();
-};
+  res.json(obj);
+});
 
-app.get("/status", (_, res) => res.json({ message: "Server is running!" }));
+// app.get("/locations/:city", async ({ params }, res) => {
+//   console.log("sta chiamando qualcuno?");
+//   const { data } = await axios.get(
+//     `${baseUrl}/weather?q=${params.city}&appid=${apiKey}`
+//   );
+//   res.json(data);
+// });
 
-app.get(
-  "/products",
-  query("limit").optional().isInt().toInt(),
-  query("skip").optional().isInt().toInt(),
-  query("q").optional().isString(),
-  checkErrors,
-  ({ url, query }, res) => {
-    const arr = url.split("?");
-    axios
-      .get(`${urlProducts}${arr[1] ? "?" + arr[1] : ""}`)
-      .then(({ data }: { data: Product[] }) => {
-        if (query.q) {
-          res.json(
-            data.filter(
-              ({ title, description }) =>
-                title.includes(query.q as string) ||
-                description.includes(query.q as string)
-            )
-          );
-        } else {
-          res.json(data);
-        }
-      });
-  }
-);
-
-app.get(
-  "/products/:id",
-  param("id").isInt().toInt(),
-  checkErrors,
-  ({ params: { id } }, res) => {
-    axios.get(`${urlProducts}/${id}`).then(({ data }) => {
-      res.json(data);
-    });
-  }
-);
-
-app.listen(3000, () => console.log("Server is running!"));
+app.listen(3001, () => console.log("Server is running!"));
